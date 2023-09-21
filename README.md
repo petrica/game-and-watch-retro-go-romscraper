@@ -31,3 +31,5 @@ For now only:
 
 Are configured. However, by manually adjusting the `consoleMapper` variable, you can configure it
 to download games for other emulators available on romsemulation.com.
+
+Feel free to submit PRs for improving the overall script and the supported emulators list.
