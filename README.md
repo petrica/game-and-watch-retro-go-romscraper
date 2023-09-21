@@ -20,7 +20,7 @@ Copy the URL of the game you would like to download:
 node romscraper.js https://romsemulation.com/roms/nintendo/super-mario-bros-europe
 ```
 
-This will automatically download the ROM and the artwork under `roms\nes` folder.
+This will automatically download the ROM and the artwork under `roms/nes` folder.
 
 ## Supported Emulators
 
