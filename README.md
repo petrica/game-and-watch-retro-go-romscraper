@@ -23,7 +23,7 @@ Copy the URL of the game you would like to download:
 node romscraper.js https://www.emulatorgames.net/roms/nintendo/super-mario-bros/
 ```
 
-This will automatically download the ROM and the artwork under `roms\nes` folder.
+This will automatically download the ROM and the artwork under `roms/nes` folder.
 
 ## Supported Emulators
 
@@ -34,3 +34,5 @@ For now only:
 
 Are configured. However, by manually adjusting the `consoleMapper` variable, you can configure it
 to download games for other emulators available on romsemulation.com.
+
+Feel free to submit PRs for improving the overall script and the supported emulators list.
