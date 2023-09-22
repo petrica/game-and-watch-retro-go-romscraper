@@ -1,18 +1,22 @@
 const axios = require('axios');
-const cheerio = require('cheerio');
 const process = require('process');
-const urlModule = require('url');
 const sharp = require('sharp');
 const AdmZip = require('adm-zip');
 const fs = require('fs');
 const path = require('path');
+const RomsEmulationComScraper = require('./scrapers/romsemulationcom_scraper');
+const EmulatorGamesNetScraper = require('./scrapers/emulatorgamesnet_scraper');
 
 // Custom user agent string
-const userAgent = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36';
 const consoleMapper = {
   Nintendo: 'nes',
   'Sega Genesis': 'md'
 }
+
+const scrapers = [
+  new RomsEmulationComScraper(),
+  new EmulatorGamesNetScraper()
+]
 
 async function downloadImage(url) {
     try {
@@ -100,109 +104,45 @@ async function downloadExtractCopyZip(url, gameTitle, destinationPath) {
   }
 }
 
-async function downloadRom(downloadURL, gameTitle, destinationDirectory) {
-  axios.get(downloadURL, {
-    headers: {
-      'User-Agent': userAgent,
-    },
-  })
-    .then((response) => {
-      if (response.status === 200) {
-        const urlPattern = /get_file\(['"]([^'"]+)['"]\)/;
-        const html = response.data;
-
-        // Find the first match in the script content
-        const match = html.match(urlPattern);
-
-        if (match && match[1]) {
-          const zipFileURL = match[1];
-          console.log(`ROM URL: ${zipFileURL}`);
-
-          downloadExtractCopyZip(zipFileURL, gameTitle, destinationDirectory)
-        }
-        else {
-          console.log('Zip File URL not found.');
-        }
-      }
-      else {
-        console.log(`Failed to retrieve the page. Status code: ${response.status}`);
-      }
-    })
-    .catch((error) => {
-      console.error('An error occurred:', error);
-    });
-}
-
 // Check if a URL is provided as a command-line argument
 if (process.argv.length !== 3) {
-  console.log('Usage: node web-scraper.js <URL>');
+  console.log('Usage: node romscraper.js <URL>');
 } else {
   const url = process.argv[2];
+  let foundScraper = false;
 
-  // Make an HTTP GET request to the provided URL with the custom user agent
-  axios.get(url, {
-    headers: {
-      'User-Agent': userAgent,
-    },
-  })
-    .then((response) => {
-      if (response.status === 200) {
-        const html = response.data;
-        const $ = cheerio.load(html);
+  scrapers.forEach(scraper => {
+    if (scraper.check(url)) {
+      foundScraper = true;
 
-        // Extract the image URL under the class "site-post-img"
-        const imageElement = $('[itemprop="image"]');
-        let imageURL = imageElement.attr('src') || imageElement.attr('content');
-        const gameTitle = $('.box-game-name:contains("File name:") .game-info__text').text().trim();
-        const consoleName = $('.box-game-name:contains("Console:") .game-info__text').text().trim();
+      scraper.scrape(url)
+      .then((gameData) => {
+        console.log(`Game Title: ${gameData.gameTitle}`);
+        console.log(`Console: ${gameData.consoleName}`);
+        console.log(`ROM URL: ${gameData.romURL}`);
+        console.log(`Image URL: ${gameData.imageURL}`);
 
-        // Extract the value of the hidden form input named "post_id"
-        const buttonElement = $('.button-download');
-        const onclickValue = buttonElement.attr('onclick');
-        let downloadURL = onclickValue.replace("window.location='", '').replace("'", '');
-
-        // Get the domain name from the input URL
-        const parsedURL = urlModule.parse(url);
-        const domainName = `${parsedURL.protocol}//${parsedURL.host}`;
-
-        // Prepend the domain name to the image and download URLs if they are relative
-        if (!imageURL.includes('http')) {
-            imageURL = domainName + imageURL;
+        if (consoleMapper.hasOwnProperty(gameData.consoleName)) {
+          const destinationDirectory = path.join("roms",consoleMapper[gameData.consoleName]);
+          if (!fs.existsSync(destinationDirectory)) {
+            fs.mkdirSync(destinationDirectory, { recursive: true });
           }
-          if (!downloadURL.includes('http')) {
-            downloadURL = domainName + downloadURL;
-          }
-
-        if (imageURL && downloadURL) {
-          console.log(`Game Title: ${gameTitle}`);
-          console.log(`Console: ${consoleName}`);
-          console.log(`Image URL: ${imageURL}`);
-          console.log(`Download URL: ${downloadURL}`);
-
-          return { title: gameTitle, downloadURL: downloadURL, imageURL: imageURL, console: consoleName};
-        } else {
-          console.log('Could not find the required information on the page.');
+  
+          processImage(gameData.imageURL, gameData.gameTitle, destinationDirectory);
+  
+          downloadExtractCopyZip(gameData.romURL, gameData.gameTitle, destinationDirectory)
         }
-      } else {
-        console.log(`Failed to retrieve the page. Status code: ${response.status}`);
-      }
-    })
-    .catch((error) => {
-      console.error('An error occurred:', error);
-    })
-    .then((data) => {
-      if (consoleMapper.hasOwnProperty(data.console)) {
-        const destinationDirectory = path.join("roms",consoleMapper[data.console]);
-        if (!fs.existsSync(destinationDirectory)) {
-          fs.mkdirSync(destinationDirectory, { recursive: true });
+        else {
+          console.log(`Console not supported: ${gameData.console}`);
         }
+      })
+      .catch((error) => {
+        console.error('An error occurred:', error);
+      });
+    }
+  });
 
-        processImage(data.imageURL, data.title, destinationDirectory);
-
-        downloadRom(data.downloadURL, data.title, destinationDirectory);
-      }
-      else {
-        console.log(`Console not supported: ${data.console}`);
-      }
-    });    
+  if (!foundScraper) {
+    console.log(`Could not find any valid scraper to parse ${url}`);
+  }
 }

@@ -1,6 +1,9 @@
 # Game and Watch Retro Go ROM Scraper
 
-Node.js script for downloading the ROM and the artwork from romsemulation.com in a suitable format for game-and-watch-retro-go firmware.
+Node.js script for downloading the ROM and the artwork in a suitable format for game-and-watch-retro-go firmware for the following websites:
+
+* romsemulation.com
+* emulatorgames.net
 
 ## Min Requirements
 
@@ -17,7 +20,7 @@ npm install
 Copy the URL of the game you would like to download:
 
 ```
-node romscraper.js https://romsemulation.com/roms/nintendo/super-mario-bros-europe
+node romscraper.js https://www.emulatorgames.net/roms/nintendo/super-mario-bros/
 ```
 
 This will automatically download the ROM and the artwork under `roms\nes` folder.
